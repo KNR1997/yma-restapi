@@ -1,14 +1,21 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from yma.db_core.core import DbSession
+from yma.database.core import DbSession
 from yma.auth.permissions import (
     AdminPermission,
     PermissionsDependency
 )
-from .models import SubjectCreate, SubjectRead, SubjectUpdate
+from yma.database.service import CommonParameters, search_filter_sort_paginate
+from .models import Subject, SubjectCreate, SubjectPagination, SubjectRead, SubjectUpdate
 from .service import create, get, update, delete
 
 router = APIRouter()
+
+
+@router.get("", response_model=SubjectPagination)
+def get_subjects(common: CommonParameters):
+    """Get all tags, or only those matching a given search term."""
+    return search_filter_sort_paginate(model=Subject, **common)
 
 
 @router.get("/{subject_id}", response_model=SubjectRead)
@@ -45,7 +52,6 @@ def update_subject(
 ):
     """Update a subject by its id."""
     subject = get(db_session=db_session, subject_id=subject_id)
-    print('updating subject-------')
     if not subject:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

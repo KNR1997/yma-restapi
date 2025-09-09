@@ -1,3 +1,4 @@
+import typing
 import uuid
 import logging
 from typing import Union
@@ -5,6 +6,7 @@ from typing import Union
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from contextvars import ContextVar
 from pydantic import ValidationError
 from sqlalchemy import create_engine
@@ -59,9 +61,6 @@ class DBSessionMiddleware(BaseHTTPMiddleware):
             _request_id_ctx_var.reset(ctx_token)
 
 
-app = FastAPI()
-
-
 async def validation_exception_handler(request: Request, exc):
     log.warning(
         f"Validation error on {request.method} {request.url.path} | {exc.errors()}")
@@ -113,8 +112,24 @@ class ExceptionMiddleware(BaseHTTPMiddleware):
         return response
 
 
+app = FastAPI()
+
+# CORS settings - we'll configure this in code instead of from env
+CORS_ORIGINS: typing.List[str] = ["*"]
+CORS_ALLOW_CREDENTIALS: bool = True
+CORS_ALLOW_METHODS: typing.List[str] = ["*"]
+CORS_ALLOW_HEADERS: typing.List[str] = ["*"]
+
+
 # Register middlewares
 app.add_middleware(DBSessionMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=CORS_ALLOW_CREDENTIALS,
+    allow_methods=CORS_ALLOW_METHODS,
+    allow_headers=CORS_ALLOW_HEADERS,
+)
 
 # Register exception handlers
 app.add_exception_handler(RequestValidationError, validation_exception_handler)

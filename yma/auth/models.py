@@ -13,7 +13,7 @@ from yma.config import (
     DISPATCH_JWT_EXP,
 )
 from sqlalchemy import Column, Enum, String, Integer
-from yma.db_core.core import Base
+from yma.database.core import Base
 from yma.models import TimeStampMixin, YMABase
 from yma.enums import UserRoles
 from .security import verify_password
@@ -118,3 +118,4 @@ class UserLoginResponse(BaseModel):
     role: str
     email: EmailStr
     full_name: str
+    permissions: list[str]

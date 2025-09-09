@@ -10,7 +10,7 @@
 pip install -r requirements.txt
 
 # Run application
-uvicorn steam.main:app --reload
+yma.main:app --reload --host 0.0.0.0 --port 8080
 
 # alembic setup
 alembic init alembic

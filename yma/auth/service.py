@@ -1,4 +1,5 @@
 import logging
+from typing import Annotated
 
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import jwt, JWTError
@@ -8,6 +9,7 @@ from starlette.status import HTTP_401_UNAUTHORIZED
 from sqlalchemy.exc import IntegrityError
 
 from yma.config import DISPATCH_JWT_ALG, DISPATCH_JWT_SECRET
+from yma.enums import UserRoles
 
 from .models import UserRegister, YMAUser
 from .security import get_password_hash
@@ -99,3 +101,14 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
     return user
+
+
+CurrentUser = Annotated[YMAUser, Depends(get_current_user)]
+
+
+
+# def get_current_role(
+#     request: Request, current_user: YMAUser = Depends(get_current_user)
+# ) -> UserRoles:
+#     """Attempts to get the current user depending on the configured authentication provider."""
+#     return current_user.role

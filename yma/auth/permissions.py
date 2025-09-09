@@ -82,7 +82,7 @@ class PermissionsDependency(object):
 
 class AdminPermission(BasePermission):
     def has_required_permissions(self, request: Request) -> bool:
-        return self.role in [UserRoles.admin]
+        return self.role in [UserRoles.super_admin, UserRoles.admin]
 
 
 class TeacherPermission(BasePermission):

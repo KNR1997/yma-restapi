@@ -41,3 +41,10 @@ class YMABase(BaseModel):
             SecretStr: lambda v: v.get_secret_value() if v else None,
         },
     )
+
+class Pagination(YMABase):
+    """Pydantic model for paginated results."""
+    itemsPerPage: int
+    page: int
+    page_size: int
+    total: int

@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String
-from yma.db_core.core import Base
+from yma.database.core import Base
 from yma.models import TimeStampMixin
 
 
@@ -10,3 +10,4 @@ class Course(Base, TimeStampMixin):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(100), unique=True)
+    slug = Column(String(100))

@@ -1,9 +1,9 @@
 from fastapi import APIRouter, HTTPException, status
 
-from yma.db_core.core import DbSession
+from yma.database.core import DbSession
 
 from .models import UserLogin, UserLoginResponse, UserRead, UserRegister
-from .service import create, get_by_email
+from .service import CurrentUser, create, get_by_email
 
 auth_router = APIRouter()
 user_router = APIRouter()
@@ -39,6 +39,7 @@ def login_user(
             "role": user.role.value,
             "email": user.email,
             "full_name": user.full_name,
+            "permissions": [user.role.value],
         }
 
     raise HTTPException(
@@ -56,3 +57,16 @@ def login_user(
             },
         ],
     )
+
+
+@auth_router.get("/me", response_model=UserRead)
+def get_me(*, current_user: CurrentUser):
+    # Create a response dict that includes settings
+    response_data = {
+        "id": current_user.id,
+        "full_name": current_user.full_name,
+        "email": current_user.email,
+        "role": current_user.role.value
+    }
+
+    return response_data

@@ -6,6 +6,7 @@ from starlette.responses import JSONResponse
 
 from yma.auth.views import auth_router as auth_router
 from yma.subject.views import router as subject_router
+from yma.settings.views import router as settings_router
 
 from yma.auth.service import get_current_user
 
@@ -23,6 +24,7 @@ class ErrorResponse(BaseModel):
 
 
 api_router = APIRouter(
+    prefix="/api/v1",
     default_response_class=JSONResponse,
     responses={
         400: {"model": ErrorResponse},
@@ -35,6 +37,7 @@ api_router = APIRouter(
 
 # Public routes
 api_router.include_router(auth_router, prefix="/auth", tags=["Authentication"])
+api_router.include_router(settings_router, prefix="/settings", tags=["Settings"])
 
 # Private (authenticated) routes
 authenticated_api_router = APIRouter(dependencies=[Depends(get_current_user)])

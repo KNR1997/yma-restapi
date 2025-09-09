@@ -4,7 +4,7 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
-from yma.database import Base
+from yma.database.utils import Base
 from yma.auth.models import *
 from yma.subject.models import *
 from yma.course.models import *

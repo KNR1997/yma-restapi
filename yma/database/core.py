@@ -4,7 +4,7 @@ from sqlalchemy.inspection import inspect
 from starlette.requests import Request
 from typing import Annotated
 
-from yma.db_core.logging import SessionTracker
+from yma.database.logging import SessionTracker
 
 
 def get_db(request: Request) -> Session:

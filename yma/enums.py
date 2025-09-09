@@ -50,6 +50,7 @@ class SearchTypes(DispatchEnum):
 
 
 class UserRoles(DispatchEnum):
+    super_admin = "super_admin"
     admin = "admin"
     teacher = "teacher"
     student = "student"
