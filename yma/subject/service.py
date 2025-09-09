@@ -1,7 +1,4 @@
 from .models import Subject, SubjectCreate, SubjectUpdate
-from fastapi import HTTPException, status
-from pydantic import ValidationError
-from sqlalchemy.exc import SQLAlchemyError
 
 
 def get(*, db_session, subject_id: int) -> Subject | None:

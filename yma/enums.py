@@ -56,6 +56,36 @@ class UserRoles(DispatchEnum):
     student = "student"
 
 
+class CourseType(DispatchEnum):
+    ONLINE = "ONLINE"
+    PHYSICAL = "PHYSICAL"
+
+
+class GradeType(DispatchEnum):
+    GRADE_5 = "GRADE_5"
+    GRADE_6 = "GRADE_6"
+    GRADE_7 = "GRADE_7"
+    GRADE_8 = "GRADE_8"
+    GRADE_9 = "GRADE_9"
+    GRADE_10 = "GRADE_10"
+    GRADE_11 = "GRADE_11"
+
+
+class GenderType(DispatchEnum):
+    MALE = "MALE"
+    FEMALE = "FEMALE"
+
+
+class YMAEventType(DispatchEnum):
+    COURSE = "COURSE"
+    EXAM = "EXAM"
+
+
+class YMAEventStatusType(DispatchEnum):
+    PENDING = "PENDING"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+
 class DocumentResourceTypes(DispatchEnum):
     case = "dispatch-case-document"
     executive = "dispatch-executive-report-document"
@@ -80,10 +110,14 @@ class DocumentResourceTemplateTypes(DispatchEnum):
 
 class EventType(DispatchEnum):
     other = "Other"  # default and catch-all (x resource created/updated, etc.)
-    field_updated = "Field updated"  # for fields like title, description, tags, type, etc.
-    assessment_updated = "Assessment updated"  # for priority, status, or severity changes
-    participant_updated = "Participant updated"  # for added/removed users and role changes
-    imported_message = "Imported message"  # for stopwatch-reacted messages from Slack
+    # for fields like title, description, tags, type, etc.
+    field_updated = "Field updated"
+    # for priority, status, or severity changes
+    assessment_updated = "Assessment updated"
+    # for added/removed users and role changes
+    participant_updated = "Participant updated"
+    # for stopwatch-reacted messages from Slack
+    imported_message = "Imported message"
     custom_event = "Custom event"  # for user-added events (new feature)
 
 

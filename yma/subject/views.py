@@ -14,7 +14,7 @@ router = APIRouter()
 
 @router.get("", response_model=SubjectPagination)
 def get_subjects(common: CommonParameters):
-    """Get all tags, or only those matching a given search term."""
+    """Get all subjects, or only those matching a given search term."""
     return search_filter_sort_paginate(model=Subject, **common)
 
 

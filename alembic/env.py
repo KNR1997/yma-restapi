@@ -8,6 +8,10 @@ from yma.database.utils import Base
 from yma.auth.models import *
 from yma.subject.models import *
 from yma.course.models import *
+from yma.event.models import *
+from yma.guardian.models import *
+from yma.hall.models import *
+
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
