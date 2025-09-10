@@ -6,6 +6,11 @@ def get(*, db_session, subject_id: int) -> Subject | None:
     return db_session.query(Subject).filter(Subject.id == subject_id).one_or_none()
 
 
+def get_by_name(*, db_session, name: str) -> Subject | None:
+    """Gets an organization by its name."""
+    return db_session.query(Subject).filter(Subject.name == name).one_or_none()
+
+
 def create(*, db_session, subject_in: SubjectCreate) -> Subject:
     """Creates a new subject."""
     subject = Subject(

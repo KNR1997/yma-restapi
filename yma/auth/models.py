@@ -3,6 +3,7 @@ import secrets
 from datetime import datetime, timedelta
 
 import bcrypt
+from fastapi.exceptions import RequestValidationError
 from jose import jwt
 from pydantic import BaseModel, EmailStr
 from pydantic import field_validator
@@ -62,6 +63,17 @@ class YMAUser(Base, TimeStampMixin):
         payload = {"sub": self.email, "role": self.role.value, "exp": exp}
         return jwt.encode(payload, DISPATCH_JWT_SECRET, algorithm=DISPATCH_JWT_ALG)
 
+    def is_admin(self) -> bool:
+        """Return True if the user is an super_admin or admin."""
+        role = self.role
+        return role in [UserRoles.super_admin, UserRoles.admin]
+
+    def set_password(self, password: str) -> None:
+        """Set a new password for the user."""
+        if not password:
+            raise ValueError("Password cannot be empty")
+        self.password = hash_password(password)
+
 
 class UserBase(YMABase):
     """Base Pydantic model for user data."""
@@ -87,6 +99,54 @@ class UserRegister(UserLogin):
     email: EmailStr
     password: str
     role: UserRoles = UserRoles.student
+
+
+class UserPasswordUpdate(YMABase):
+    """Pydantic model for password updates only."""
+
+    current_password: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password(cls, v):
+        """Validate the new password for length and complexity."""
+        if not v or len(v) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        if not any(c.isdigit() for c in v):
+            raise ValueError("Password must contain at least one number")
+        if not (any(c.isupper() for c in v) and any(c.islower() for c in v)):
+            raise ValueError(
+                "Password must contain both uppercase and lowercase characters")
+        return v
+
+    @field_validator("current_password")
+    @classmethod
+    def password_required(cls, v):
+        """Ensure the current password is provided."""
+        if not v:
+            raise ValueError("Current password is required")
+        return v
+
+
+class AdminPasswordReset(YMABase):
+    """Pydantic model for admin password resets."""
+
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password(cls, v):
+        """Validate the new password for length and complexity."""
+        if not v or len(v) < 8:
+            print('less than 8 characters')
+            raise RequestValidationError("Password must be at least 8 characters long")
+        if not any(c.isdigit() for c in v):
+            raise ValueError("Password must contain at least one number")
+        if not (any(c.isupper() for c in v) and any(c.islower() for c in v)):
+            raise ValueError(
+                "Password must contain both uppercase and lowercase characters")
+        return v
 
 
 class UserCreate(YMABase):

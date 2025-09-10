@@ -2,8 +2,8 @@ from fastapi import APIRouter, HTTPException, status
 
 from yma.database.core import DbSession
 
-from .models import UserLogin, UserLoginResponse, UserRead, UserRegister
-from .service import CurrentUser, create, get_by_email
+from .models import AdminPasswordReset, UserLogin, UserLoginResponse, UserPasswordUpdate, UserRead, UserRegister
+from .service import CurrentUser, create, get_by_email, get
 
 auth_router = APIRouter()
 user_router = APIRouter()
@@ -70,3 +70,82 @@ def get_me(*, current_user: CurrentUser):
     }
 
     return response_data
+
+
+@user_router.post("/{user_id}/change-password", response_model=UserRead)
+def change_password(
+    db_session: DbSession,
+    user_id: int,
+    password_update: UserPasswordUpdate,
+    current_user: CurrentUser,
+):
+    """Change user password with proper validation"""
+    user = get(db_session=db_session, user_id=user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=[{"msg": "A user with this id does not exist."}],
+        )
+
+    # Only allow users to change their own password or owners to reset
+    if user.id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=[{"msg": "Not authorized to change other user passwords"}],
+        )
+
+    # Validate current password if user is changing their own password
+    if user.id == current_user.id:
+        if not user.verify_password(password_update.current_password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=[{"msg": "Invalid current password"}],
+            )
+
+    # Set new password
+    try:
+        user.set_password(password_update.new_password)
+        db_session.commit()
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=[{"msg": str(e)}],
+        ) from e
+
+    return user
+
+
+@user_router.post("/{user_id}/reset-password", response_model=UserRead)
+def admin_reset_password(
+    db_session: DbSession,
+    user_id: int,
+    password_reset: AdminPasswordReset,
+    current_user: CurrentUser,
+):
+    """Admin endpoint to reset user password"""
+    print('api trigger')
+    # Verify current user is an admin
+    if not current_user.is_admin():
+        print('not a admin')
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=[{"msg": "Only admins can reset passwords"}],
+        )
+
+    user = get(db_session=db_session, user_id=user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=[{"msg": "A user with this id does not exist."}],
+        )
+
+    try:
+        user.set_password(password_reset.new_password)
+        db_session.commit()
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=[{"msg": str(e)}],
+        ) from e
+
+    return user

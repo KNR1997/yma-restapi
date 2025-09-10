@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
+
+from sqlalchemy.exc import IntegrityError
 
 from yma.database.core import DbSession
 from yma.auth.permissions import (
@@ -6,6 +8,7 @@ from yma.auth.permissions import (
     PermissionsDependency
 )
 from yma.database.service import CommonParameters, search_filter_sort_paginate
+from yma.exceptions import DuplicateNameError, NotFoundError
 from .models import Course, CourseCreate, CoursePagination, CourseRead, CourseUpdate
 from .service import create, get, update, delete
 
@@ -23,10 +26,7 @@ def get_course(db_session: DbSession, course_id: int):
     """Get a course by its id."""
     course = get(db_session=db_session, course_id=course_id)
     if not course:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=[{"msg": "A course with this id does not exist."}],
-        )
+        raise NotFoundError("A course with this id does not exist.")
     return course
 
 
@@ -53,13 +53,15 @@ def update_course(
     """Update a course by its id."""
     course = get(db_session=db_session, course_id=course_id)
     if not course:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=[{"msg": "A course with this id does not exist."}],
+        raise NotFoundError("A course with this id does not exist.")
+    try:
+        course = update(
+            db_session=db_session, course=course, course_in=course_in
         )
-    course = update(
-        db_session=db_session, course=course, course_in=course_in
-    )
+    except IntegrityError:
+        db_session.rollback()   # 🔑 reset the session so middleware won’t choke
+        raise DuplicateNameError("name")
+
     return course
 
 
@@ -72,8 +74,5 @@ def delete_course(db_session: DbSession, course_id: int):
     """Delete a course, returning only an HTTP 200 OK if successful."""
     course = get(db_session=db_session, course_id=course_id)
     if not course:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=[{"msg": "A course with this id does not exist."}],
-        )
+        raise NotFoundError("A course with this id does not exist.")
     delete(db_session=db_session, course_id=course_id)

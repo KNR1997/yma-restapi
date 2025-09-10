@@ -25,6 +25,11 @@ InvalidCredentialException = HTTPException(
 )
 
 
+def get(*, db_session, user_id: int) -> YMAUser | None:
+    """Returns a user based on the given user id."""
+    return db_session.query(YMAUser).filter(YMAUser.id == user_id).one_or_none()
+
+
 def get_by_email(*, db_session, email: str) -> YMAUser | None:
     """Returns a user object based on user email."""
     return db_session.query(YMAUser).filter(YMAUser.email == email).one_or_none()
@@ -104,7 +109,6 @@ def get_current_user(
 
 
 CurrentUser = Annotated[YMAUser, Depends(get_current_user)]
-
 
 
 # def get_current_role(
