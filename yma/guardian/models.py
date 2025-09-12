@@ -1,29 +1,34 @@
-from sqlalchemy import Column, Enum, Integer, String
-from yma.database.core import Base
-from yma.enums import GenderType
-from yma.models import Pagination, TimeStampMixin, YMABase
+from pydantic import BaseModel, Field
+from tortoise import fields, models
+
+from yma.enums import GradeType
+from yma.models import Pagination
 
 
-class Guardian(Base, TimeStampMixin):
-    """SQLAlchemy model for a Guardian."""
+class Guardian(models.Model):
+    id = fields.BigIntField(pk=True, index=True)
+    first_name = fields.CharField(max_length=30)
+    last_name = fields.CharField(max_length=30)
+    nic_number = fields.CharField(max_length=30, unique=True)
+    phone_number = fields.CharField(max_length=10)
+    gender = fields.CharEnumField(GradeType)
 
-    __tablename__ = "guardians"
-
-    id = Column(Integer, primary_key=True)
-    first_name = Column(String(100))
-    last_name = Column(String(100))
-    nic_number = Column(String(100), unique=True)
-    phone_number = Column(String(100))
-    gender = Column(Enum(GenderType))
-
+    class Meta:
+        table = "guardian"
 
 # Pydantic models
-class GuardianBase(YMABase):
+
+
+class GuardianBase(BaseModel):
     first_name: str
     last_name: str
     nic_number: str
     phone_number: str
-    gender: GenderType
+    gender: GradeType
+
+    model_config = {
+        "from_attributes": True
+    }
 
 
 class GuardianCreate(GuardianBase):

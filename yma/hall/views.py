@@ -1,79 +1,79 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Optional
+from fastapi import APIRouter, Query
+from tortoise.expressions import Q
 
-from yma.database.core import DbSession
-from yma.auth.permissions import (
-    AdminPermission,
-    PermissionsDependency
-)
-from yma.database.service import CommonParameters, search_filter_sort_paginate
-from .models import Hall, HallCreate, HallPagination, HallRead, HallUpdate
-from .service import create, get, update, delete
+from yma.exceptions import ResourceNotFoundException
+
+from .models import HallCreate, HallPagination, HallRead, HallUpdate
+from .repository import HallRepository
+from .service import HallService
+
 
 router = APIRouter()
+service = HallService(HallRepository())
 
 
 @router.get("", response_model=HallPagination)
-def get_halls(common: CommonParameters):
-    """Get all halls, or only those matching a given search term."""
-    return search_filter_sort_paginate(model=Hall, **common)
+async def paginated_halls(
+    page: int = Query(1, description="Page Number"),
+    page_size: int = Query(10, description="Items Per Page"),
+    search: Optional[str] = Query("", description="Subject Name for Search"),
+    searchJoin: str = Query(
+        "and", description="'and' or 'or' join for multiple search conditions"),
+):
+    q = Q()
+    if search:
+        # Example: search="name:english;status:active"
+        filters = search.split(";")
+        for f in filters:
+            try:
+                field, value = f.split(":", 1)
+                lookup = {f"{field}__icontains": value}
+                condition = Q(**lookup)
+                if searchJoin.lower() == "or":
+                    q |= condition
+                else:
+                    q &= condition
+            except ValueError:
+                continue  # skip invalid filter format
+
+    total, data = await service.paginated_halls(page=page, page_size=page_size, search=q)
+    return HallPagination(
+        data=data,
+        itemsPerPage=10,
+        page=page,
+        page_size=page_size,
+        total=total,
+    )
 
 
 @router.get("/{hall_id}", response_model=HallRead)
-def get_hall(db_session: DbSession, hall_id: int):
+async def get_hall(hall_id: int):
     """Get a hall by its id."""
-    hall = get(db_session=db_session, hall_id=hall_id)
-    if not hall:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=[{"msg": "A hall with this id does not exist."}],
-        )
+    hall = await service.get(hall_id)
     return hall
 
 
-@router.post(
-    "",
-    response_model=HallRead,
-    dependencies=[Depends(PermissionsDependency([AdminPermission]))]
-)
-def create_hall(db_session: DbSession, hall_in: HallCreate):
-    """Create a hall."""
-    return create(db_session=db_session, hall_in=hall_in)
+@router.post("", response_model=HallRead)
+async def create_hall(hall_in: HallCreate):
+    """Create a new hall."""
+    return await service.create(hall_in)
 
 
-@router.put(
-    "/{hall_id}",
-    response_model=HallRead,
-    dependencies=[Depends(PermissionsDependency([AdminPermission]))]
-)
-def update_hall(
-    db_session: DbSession,
+@router.put("/{hall_id}", response_model=HallRead)
+async def update_hall(
     hall_id: int,
     hall_in: HallUpdate
 ):
     """Update a hall by its id."""
-    hall = get(db_session=db_session, hall_id=hall_id)
+    hall = await service.get(hall_id=hall_id)
     if not hall:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=[{"msg": "A hall with this id does not exist."}],
-        )
-    hall = update(
-        db_session=db_session, hall=hall, hall_in=hall_in
-    )
-    return hall
+        raise ResourceNotFoundException(
+            "A hall with this id does not exist.")
+    return await service.update(hall=hall, hall_in=hall_in)
 
 
-@router.delete(
-    "/{hall_id}",
-    response_model=None,
-    dependencies=[Depends(PermissionsDependency([AdminPermission]))],
-)
-def delete_hall(db_session: DbSession, hall_id: int):
+@router.delete("/{hall_id}", response_model=None)
+async def delete_hall(hall_id: int):
     """Delete a hall, returning only an HTTP 200 OK if successful."""
-    hall = get(db_session=db_session, hall_id=hall_id)
-    if not hall:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=[{"msg": "A hall with this id does not exist."}],
-        )
-    delete(db_session=db_session, hall_id=hall_id)
+    return await service.delete(hall_id)

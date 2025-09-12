@@ -1,42 +1,34 @@
+from typing import List, Tuple
+from tortoise.expressions import Q
+
 from .models import Hall, HallCreate, HallUpdate
+from .repository import HallRepository
 
 
-def get(*, db_session, hall_id: int) -> Hall | None:
-    """Gets a hall by id."""
-    return db_session.query(Hall).filter(Hall.id == hall_id).one_or_none()
+class HallService:
+    def __init__(self, repository: HallRepository):
+        self.repository = repository
 
+    async def paginated_halls(
+        self, page: int, page_size: int, search: Q = Q(), order: list = []
+    ) -> Tuple[int, List[Hall]]:
+        return await self.repository.paginated(page, page_size, search, order)
 
-def create(*, db_session, hall_in: HallCreate) -> Hall:
-    """Creates a new hall."""
-    hall = Hall(
-        **hall_in.model_dump(),
-    )
+    async def get(self, hall_id: int) -> Hall | None:
+        """Gets a hall by id."""
+        return await self.repository.get(id=hall_id)
 
-    db_session.add(hall)
-    db_session.commit()
-    return hall
+    async def get_by_name(self, name: str) -> Hall | None:
+        """Gets a hall by name."""
+        return await self.repository.get(name=name)
 
+    async def create(self, hall_in: HallCreate) -> Hall:
+        return await self.repository.create(**hall_in.model_dump())
 
-def update(
-    *, db_session, hall: Hall, hall_in: HallUpdate
-) -> Hall:
-    """Updates a hall."""
-    hall_data = hall.dict()
-    update_data = hall_in.model_dump(exclude_unset=True)
+    async def update(self, hall: Hall, hall_in: HallUpdate) -> Hall:
+        """Updates a hall."""
+        return await self.repository.update(hall, **hall_in.model_dump(exclude_unset=True))
 
-    for field in hall_data:
-        if field in update_data:
-            setattr(hall, field, update_data[field])
-
-    db_session.commit()
-    return hall
-
-
-def delete(*, db_session, hall_id: int):
-    """Deletes a hall."""
-    hall = (
-        db_session.query(Hall).filter(
-            Hall.id == hall_id).one_or_none()
-    )
-    db_session.delete(hall)
-    db_session.commit()
+    async def delete(self, hall_id: int) -> bool:
+        """Deletes a hall."""
+        return await self.repository.delete(hall_id)

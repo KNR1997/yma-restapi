@@ -1,0 +1,44 @@
+from pydantic import BaseModel
+from uuid import UUID
+from tortoise import fields, models
+
+from yma.auth.models import UserCreate
+from yma.enums import GradeType
+from yma.models import Pagination
+
+
+class Student(models.Model):
+    user = fields.OneToOneField("models.YMAUser", related_name="student")
+    student_number = fields.CharField(max_length=30, unique=True, index=True)
+    grade = fields.CharEnumField(GradeType, index=True)
+    is_admission_payed = fields.BooleanField(default=False)
+
+    class Meta:
+        table = "student"
+
+
+# Pydantic models
+class StudentBase(BaseModel):
+    name: str
+    code: str
+
+    model_config = {
+        "from_attributes": True
+    }
+
+
+class StudentCreate(StudentBase):
+    user: UserCreate
+    user_id: UUID | None = None
+
+
+class StudentUpdate(StudentBase):
+    pass
+
+
+class StudentRead(StudentBase):
+    id: int
+
+
+class StudentPagination(Pagination):
+    data: list[StudentRead]

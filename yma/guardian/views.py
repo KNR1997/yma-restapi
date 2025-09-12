@@ -1,79 +1,79 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Optional
+from fastapi import APIRouter, Query
+from tortoise.expressions import Q
 
-from yma.database.core import DbSession
-from yma.auth.permissions import (
-    AdminPermission,
-    PermissionsDependency
-)
-from yma.database.service import CommonParameters, search_filter_sort_paginate
-from .models import Guardian, GuardianCreate, GuardianPagination, GuardianRead, GuardianUpdate
-from .service import create, get, update, delete
+from yma.exceptions import ResourceNotFoundException
+
+from .models import GuardianCreate, GuardianPagination, GuardianRead, GuardianUpdate
+from .repository import GuardianRepository
+from .service import GuardianService
+
 
 router = APIRouter()
+service = GuardianService(GuardianRepository())
 
 
 @router.get("", response_model=GuardianPagination)
-def get_guardians(common: CommonParameters):
-    """Get all guardians, or only those matching a given search term."""
-    return search_filter_sort_paginate(model=Guardian, **common)
+async def paginated_guardians(
+    page: int = Query(1, description="Page Number"),
+    page_size: int = Query(10, description="Items Per Page"),
+    search: Optional[str] = Query("", description="Subject Name for Search"),
+    searchJoin: str = Query(
+        "and", description="'and' or 'or' join for multiple search conditions"),
+):
+    q = Q()
+    if search:
+        # Example: search="name:english;status:active"
+        filters = search.split(";")
+        for f in filters:
+            try:
+                field, value = f.split(":", 1)
+                lookup = {f"{field}__icontains": value}
+                condition = Q(**lookup)
+                if searchJoin.lower() == "or":
+                    q |= condition
+                else:
+                    q &= condition
+            except ValueError:
+                continue  # skip invalid filter format
+
+    total, data = await service.paginated_guardians(page=page, page_size=page_size, search=q)
+    return GuardianPagination(
+        data=data,
+        itemsPerPage=10,
+        page=page,
+        page_size=page_size,
+        total=total,
+    )
 
 
 @router.get("/{guardian_id}", response_model=GuardianRead)
-def get_guardian(db_session: DbSession, guardian_id: int):
+async def get_guardian(guardian_id: int):
     """Get a guardian by its id."""
-    guardian = get(db_session=db_session, guardian_id=guardian_id)
-    if not guardian:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=[{"msg": "A guardian with this id does not exist."}],
-        )
+    guardian = await service.get(guardian_id)
     return guardian
 
 
-@router.post(
-    "",
-    response_model=GuardianRead,
-    dependencies=[Depends(PermissionsDependency([AdminPermission]))]
-)
-def create_guardian(db_session: DbSession, guardian_in: GuardianCreate):
-    """Create a guardian."""
-    return create(db_session=db_session, guardian_in=guardian_in)
+@router.post("", response_model=GuardianRead)
+async def create_guardian(guardian_in: GuardianCreate):
+    """Create a new guardian."""
+    return await service.create(guardian_in)
 
 
-@router.put(
-    "/{guardian_id}",
-    response_model=GuardianRead,
-    dependencies=[Depends(PermissionsDependency([AdminPermission]))]
-)
-def update_guardian(
-    db_session: DbSession,
+@router.put("/{guardian_id}", response_model=GuardianRead)
+async def update_guardian(
     guardian_id: int,
     guardian_in: GuardianUpdate
 ):
     """Update a guardian by its id."""
-    guardian = get(db_session=db_session, guardian_id=guardian_id)
+    guardian = await service.get(guardian_id=guardian_id)
     if not guardian:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=[{"msg": "A guardian with this id does not exist."}],
-        )
-    guardian = update(
-        db_session=db_session, guardian=guardian, guardian_in=guardian_in
-    )
-    return guardian
+        raise ResourceNotFoundException(
+            "A guardian with this id does not exist.")
+    return await service.update(guardian=guardian, guardian_in=guardian_in)
 
 
-@router.delete(
-    "/{guardian_id}",
-    response_model=None,
-    dependencies=[Depends(PermissionsDependency([AdminPermission]))],
-)
-def delete_guardian(db_session: DbSession, guardian_id: int):
+@router.delete("/{guardian_id}", response_model=None)
+async def delete_guardian(guardian_id: int):
     """Delete a guardian, returning only an HTTP 200 OK if successful."""
-    guardian = get(db_session=db_session, guardian_id=guardian_id)
-    if not guardian:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=[{"msg": "A guardian with this id does not exist."}],
-        )
-    delete(db_session=db_session, guardian_id=guardian_id)
+    return await service.delete(guardian_id)

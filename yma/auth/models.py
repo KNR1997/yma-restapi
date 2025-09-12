@@ -1,38 +1,33 @@
-import string
-import secrets
-from datetime import datetime, timedelta
-
+from datetime import datetime
+from typing import Optional
+from uuid import UUID
 import bcrypt
+
 from fastapi.exceptions import RequestValidationError
-from jose import jwt
-from pydantic import BaseModel, EmailStr
-from pydantic import field_validator
+from pydantic import BaseModel, EmailStr, field_validator
+from tortoise import fields, models
 
-from yma.config import (
-    DISPATCH_JWT_SECRET,
-    DISPATCH_JWT_ALG,
-    DISPATCH_JWT_EXP,
-)
-from sqlalchemy import Column, Enum, String, Integer
-from yma.database.core import Base
-from yma.models import TimeStampMixin, YMABase
-from yma.enums import UserRoles
-from .security import verify_password
+from yma.enums import UserRole
+from yma.models import Pagination
 
 
-def generate_password():
-    """Generate a random, strong password with at least one lowercase, one uppercase, and three digits."""
-    alphanumeric = string.ascii_letters + string.digits
-    while True:
-        password = "".join(secrets.choice(alphanumeric) for i in range(10))
-        # Ensure password meets complexity requirements
-        if (
-            any(c.islower() for c in password)
-            and any(c.isupper() for c in password)
-            and sum(c.isdigit() for c in password) >= 3
-        ):
-            break
-    return password
+class YMAUser(models.Model):
+    id = fields.UUIDField(pk=True, index=True)
+    full_name = fields.TextField(null=True)
+    first_name = fields.TextField(null=True)
+    last_name = fields.TextField(null=True)
+    name_with_initials = fields.TextField(null=True)
+    username = fields.CharField(max_length=30, null=True)
+    email = fields.CharField(max_length=191, unique=True, index=True)
+    phone = fields.CharField(max_length=20, null=True)
+    nic = fields.TextField(max_length=30, null=True)
+    password = fields.TextField()
+    is_active = fields.BooleanField(default=True)
+    last_login = fields.DatetimeField(null=True)
+    role = fields.CharEnumField(UserRole)
+
+    class Meta:
+        table = "user"
 
 
 def hash_password(password: str):
@@ -42,66 +37,38 @@ def hash_password(password: str):
     return bcrypt.hashpw(pw, salt)
 
 
-class YMAUser(Base, TimeStampMixin):
-    """SQLAlchemy model for a YMA user."""
-
-    __tablename__ = "users"
-
-    id = Column(Integer, primary_key=True)
-    full_name = Column(String(200), nullable=False)
-    email = Column(String(100), unique=True)
-    password = Column(String(255), nullable=False)
-    role = Column(Enum(UserRoles), default=UserRoles.student, nullable=False)
-
-    def verify_password(self, password: str) -> bool:
-        return verify_password(password, self.password)
-
-    @property
-    def token(self):
-        now = datetime.utcnow()
-        exp = now + timedelta(seconds=DISPATCH_JWT_EXP)
-        payload = {"sub": self.email, "role": self.role.value, "exp": exp}
-        return jwt.encode(payload, DISPATCH_JWT_SECRET, algorithm=DISPATCH_JWT_ALG)
-
-    def is_admin(self) -> bool:
-        """Return True if the user is an super_admin or admin."""
-        role = self.role
-        return role in [UserRoles.super_admin, UserRoles.admin]
-
-    def set_password(self, password: str) -> None:
-        """Set a new password for the user."""
-        if not password:
-            raise ValueError("Password cannot be empty")
-        self.password = hash_password(password)
-
-
-class UserBase(YMABase):
-    """Base Pydantic model for user data."""
-
-    email: EmailStr
-
-    @field_validator("email")
-    @classmethod
-    def email_required(cls, v):
-        """Ensure the email field is not empty."""
-        if not v:
-            raise ValueError("Must not be empty string and must be a email")
-        return v
-
-
 class UserLogin(BaseModel):
     email: str
     password: str
 
 
+class JWTPayload(BaseModel):
+    user_id: str
+    email: str
+    # is_superuser: bool
+    exp: datetime
+
+
+class JWTOut(BaseModel):
+    token: str
+    email: str
+    username: str
+    role: str
+    permissions: list[str]
+
+
 class UserRegister(UserLogin):
     full_name: str
+    first_name: str
+    last_name: str
+    name_with_initials: str
+    username: str
     email: EmailStr
     password: str
-    role: UserRoles = UserRoles.student
+    role: UserRole = UserRole.student
 
 
-class UserPasswordUpdate(YMABase):
+class UserPasswordUpdate(BaseModel):
     """Pydantic model for password updates only."""
 
     current_password: str
@@ -129,7 +96,7 @@ class UserPasswordUpdate(YMABase):
         return v
 
 
-class AdminPasswordReset(YMABase):
+class AdminPasswordReset(BaseModel):
     """Pydantic model for admin password resets."""
 
     new_password: str
@@ -140,7 +107,8 @@ class AdminPasswordReset(YMABase):
         """Validate the new password for length and complexity."""
         if not v or len(v) < 8:
             print('less than 8 characters')
-            raise RequestValidationError("Password must be at least 8 characters long")
+            raise RequestValidationError(
+                "Password must be at least 8 characters long")
         if not any(c.isdigit() for c in v):
             raise ValueError("Password must contain at least one number")
         if not (any(c.isupper() for c in v) and any(c.islower() for c in v)):
@@ -149,12 +117,16 @@ class AdminPasswordReset(YMABase):
         return v
 
 
-class UserCreate(YMABase):
+class UserCreate(BaseModel):
     """Pydantic model for creating a new user."""
 
+    full_name: str
+    first_name: str
+    last_name: str
+    name_with_initials: str
     email: EmailStr
-    password: str | None = None
-    role: str | None = None
+    password: str
+    role: Optional[str] = None
 
     @field_validator("password", mode="before")
     @classmethod
@@ -163,14 +135,33 @@ class UserCreate(YMABase):
         return hash_password(str(v))
 
 
-class UserRead(BaseModel):
-    id: int
-    full_name: str
-    email: EmailStr
-    role: UserRoles
+class UserUpdate(BaseModel):
+    """Pydantic model for updating user data."""
 
-    class Config:
-        orm_mode = True
+    full_name: str
+    first_name: str
+    last_name: str
+    name_with_initials: str
+    nic: str
+    username: str
+    email: EmailStr
+    role: str | None = None
+
+
+class UserRead(BaseModel):
+    id: UUID
+    full_name: str
+    first_name: str | None
+    last_name: str | None
+    name_with_initials: str | None
+    nic: str | None
+    username: str | None
+    email: EmailStr
+    role: UserRole
+
+    model_config = {
+        "from_attributes": True
+    }
 
 
 class UserLoginResponse(BaseModel):
@@ -179,3 +170,7 @@ class UserLoginResponse(BaseModel):
     email: EmailStr
     full_name: str
     permissions: list[str]
+
+
+class UserPagination(Pagination):
+    data: list[UserRead]

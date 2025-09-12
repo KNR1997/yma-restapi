@@ -1,33 +1,57 @@
-from fastapi import APIRouter, Depends
+from typing import Optional
+from fastapi import APIRouter, Depends, Query
+from tortoise.expressions import Q
 
-from sqlalchemy.exc import IntegrityError
+from yma.auth.permissions import AdminPermission, PermissionsDependency
+from yma.exceptions import ConflictException, ResourceNotFoundException
 
+from .models import SubjectCreate, SubjectPagination, SubjectRead, SubjectUpdate
+from .repository import SubjectRepository
+from .service import SubjectService
 
-from yma.database.core import DbSession
-from yma.auth.permissions import (
-    AdminPermission,
-    PermissionsDependency
-)
-from yma.database.service import CommonParameters, search_filter_sort_paginate
-from yma.exceptions import DuplicateNameError, NotFoundError
-from .models import Subject, SubjectCreate, SubjectPagination, SubjectRead, SubjectUpdate
-from .service import create, get, update, delete, get_by_name
 
 router = APIRouter()
+service = SubjectService(SubjectRepository())
 
 
 @router.get("", response_model=SubjectPagination)
-def get_subjects(common: CommonParameters):
-    """Get all subjects, or only those matching a given search term."""
-    return search_filter_sort_paginate(model=Subject, **common)
+async def paginated_subjects(
+    page: int = Query(1, description="Page Number"),
+    page_size: int = Query(10, description="Items Per Page"),
+    search: Optional[str] = Query("", description="Subject Name for Search"),
+    searchJoin: str = Query(
+        "and", description="'and' or 'or' join for multiple search conditions"),
+):
+    q = Q()
+    if search:
+        # Example: search="name:english;status:active"
+        filters = search.split(";")
+        for f in filters:
+            try:
+                field, value = f.split(":", 1)
+                lookup = {f"{field}__icontains": value}
+                condition = Q(**lookup)
+                if searchJoin.lower() == "or":
+                    q |= condition
+                else:
+                    q &= condition
+            except ValueError:
+                continue  # skip invalid filter format
+
+    total, subjects = await service.paginated(page=page, page_size=page_size, search=q)
+    return SubjectPagination(
+        data=subjects,
+        itemsPerPage=10,
+        page=page,
+        page_size=page_size,
+        total=total,
+    )
 
 
 @router.get("/{subject_id}", response_model=SubjectRead)
-def get_subject(db_session: DbSession, subject_id: int):
+async def get_subject(subject_id: int):
     """Get a subject by its id."""
-    subject = get(db_session=db_session, subject_id=subject_id)
-    if not subject:
-        raise NotFoundError("A subject with this id does not exist.")
+    subject = await service.get(subject_id)
     return subject
 
 
@@ -36,47 +60,32 @@ def get_subject(db_session: DbSession, subject_id: int):
     response_model=SubjectRead,
     dependencies=[Depends(PermissionsDependency([AdminPermission]))]
 )
-def create_subject(db_session: DbSession, subject_in: SubjectCreate):
-    """Create a subject."""
-    subject = get_by_name(db_session=db_session, name=subject_in.name)
-    if subject:
-        raise DuplicateNameError("name")
-    return create(db_session=db_session, subject_in=subject_in)
+async def create_subject(subject_in: SubjectCreate):
+    """Create a new subject."""
+    if await service.get_by_name(name=subject_in.name):
+        raise ConflictException(
+            "Subject with this name already exists", field="name")
+    return await service.create(subject_in)
 
 
-@router.put(
-    "/{subject_id}",
-    response_model=SubjectRead,
-    dependencies=[Depends(PermissionsDependency([AdminPermission]))]
-)
-def update_subject(
-    db_session: DbSession,
+@router.put("/{subject_id}", response_model=SubjectRead)
+async def update_subject(
     subject_id: int,
     subject_in: SubjectUpdate
 ):
     """Update a subject by its id."""
-    subject = get(db_session=db_session, subject_id=subject_id)
+    subject = await service.get(subject_id=subject_id)
     if not subject:
-        raise NotFoundError("A subject with this id does not exist.")
-    try:
-        subject = update(
-            db_session=db_session, subject=subject, subject_in=subject_in
-        )
-    except IntegrityError:
-        db_session.rollback()   # 🔑 reset the session so middleware won’t choke
-        raise DuplicateNameError("name")
-
-    return subject
+        raise ResourceNotFoundException(
+            "A subject with this id does not exist.")
+    if subject_in.name != subject.name:
+        if await service.get_by_name(name=subject_in.name):
+            raise ConflictException(
+                "Subject with this name already exists", field="name")
+    return await service.update(subject=subject, subject_in=subject_in)
 
 
-@router.delete(
-    "/{subject_id}",
-    response_model=None,
-    dependencies=[Depends(PermissionsDependency([AdminPermission]))],
-)
-def delete_subject(db_session: DbSession, subject_id: int):
+@router.delete("/{subject_id}", response_model=None)
+async def delete_subject(subject_id: int):
     """Delete a subject, returning only an HTTP 200 OK if successful."""
-    subject = get(db_session=db_session, subject_id=subject_id)
-    if not subject:
-        raise NotFoundError("A subject with this id does not exist.")
-    delete(db_session=db_session, subject_id=subject_id)
+    return await service.delete(subject_id)

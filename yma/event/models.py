@@ -1,37 +1,44 @@
-from sqlalchemy import Column, Date, Time, Enum, ForeignKey, Integer, String
-from yma.database.core import Base
-from yma.enums import EventType, YMAEventStatusType, YMAEventType
-from yma.models import Pagination, TimeStampMixin, YMABase
+from pydantic import BaseModel
+from tortoise import fields
+
+from tortoise import fields, models
+
+from yma.course.models import Course
+from yma.enums import EventStatusType, EventType
+from yma.models import Pagination
 
 
-class Event(Base, TimeStampMixin):
-    """SQLAlchemy model for a Event."""
+class Event(models.Model):
+    id = fields.BigIntField(pk=True)
+    course: fields.ForeignKeyRelation[Course] = fields.ForeignKeyField(
+        "models.Course", related_name="events"
+    )
+    event_type = fields.CharEnumField(EventType, index=True)
+    code = fields.CharField(max_length=255, null=True)
+    date = fields.DateField(null=True)
+    start_time = fields.TimeField(null=True)
+    end_time = fields.TimeField(null=True)
+    reference = fields.CharField(max_length=255, null=True)
+    status = fields.CharEnumField(EventStatusType, index=True)
 
-    __tablename__ = "events"
-
-    id = Column(Integer, primary_key=True)
-    code = Column(String(100), unique=True)
-    event_type = Column(Enum(YMAEventType))
-    date = Column(Date)
-    start_time = Column(Time)
-    end_time = Column(Time)
-    reference = Column(String(255))
-    status = Column(Enum(YMAEventStatusType))
-
-    # relationships
-    course_id = Column(Integer, ForeignKey(
-        "courses.id", ondelete="SET NULL"), nullable=True)
+    class Meta:
+        table = "event"
 
 
 # Pydantic models
-class EventBase(YMABase):
-    code: str
+class EventBase(BaseModel):
+    course_id: str
     event_type: EventType
+    code: str
     date: str
     start_time: str
     end_time: str
     reference: str
-    status: YMAEventStatusType
+    status: EventStatusType
+
+    model_config = {
+        "from_attributes": True
+    }
 
 
 class EventCreate(EventBase):

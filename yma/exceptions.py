@@ -1,33 +1,34 @@
-from typing import Any, List
+class BaseAppException(Exception):
+    """Base exception for our application"""
+
+    def __init__(self, message: str, status_code: int = 500):
+        self.message = message
+        self.status_code = status_code
+        super().__init__(self.message)
 
 
-class AppException(Exception):
-    """Base application exception with consistent response format."""
+class ResourceNotFoundException(BaseAppException):
+    """Raised when a requested resource is not found"""
 
-    status_code: int = 400
-    detail: Any = {"detail": [{"msg": "An error occurred."}]}
-
-    def __init__(self, detail: Any = None):
-        if detail:
-            self.detail = detail
+    def __init__(self, message: str):
+        super().__init__(message, status_code=404)
 
 
-class NotFoundError(AppException):
-    status_code = 404
+class ValidationException(BaseAppException):
+    """Raised when input validation fails"""
 
-    def __init__(self, msg: str = "Resource not found."):
-        super().__init__([{"msg": msg}])
-
-
-class DuplicateNameError(AppException):
-    status_code = 400
-
-    def __init__(self, field: str = "name"):
-        super().__init__([{"msg": f"{field} already exists.", "loc": [field]}])
+    def __init__(self, message: str):
+        super().__init__(message, status_code=400)
 
 
-class BadRequestError(AppException):
-    status_code = 400
+class UnauthorizedException(BaseAppException):
+    """Raised when user is not authorized"""
 
-    def __init__(self, msg: str):
-        super().__init__([{"msg": msg}])
+    def __init__(self, message: str):
+        super().__init__(message, status_code=401)
+
+
+class ConflictException(BaseAppException):
+    def __init__(self, message: str = "Conflict error", field: str | None = None):
+        self.field = field
+        super().__init__(message, status_code=409)

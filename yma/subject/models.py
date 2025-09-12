@@ -1,35 +1,26 @@
-from slugify import slugify
+from pydantic import BaseModel, Field
+from tortoise import fields, models
 
-from sqlalchemy.event import listen
-from sqlalchemy import Column, String, Integer
-from yma.database.core import Base
-from yma.models import Pagination, TimeStampMixin, YMABase
+from yma.models import Pagination
 
 
-class Subject(Base, TimeStampMixin):
-    """SQLAlchemy model for a Subject."""
+class Subject(models.Model):
+    id = fields.BigIntField(pk=True, index=True)
+    name = fields.CharField(max_length=20, unique=True)
+    code = fields.CharField(max_length=20)
 
-    __tablename__ = "subjects"
-
-    id = Column(Integer, primary_key=True)
-    name = Column(String(100), unique=True)
-    slug = Column(String(100))
-    code = Column(String(100), unique=True)
-
-
-def generate_slug(target, value, oldvalue, initiator):
-    """Creates a reasonable slug based on subject name."""
-    if value and (not target.slug or value != oldvalue):
-        target.slug = slugify(value, separator="_")
-
-
-listen(Subject.name, "set", generate_slug)
+    class Meta:
+        table = "subject"
 
 
 # Pydantic models
-class SubjectBase(YMABase):
-    name: str
-    code: str
+class SubjectBase(BaseModel):
+    name: str = Field(description="Maths")
+    code: str = Field(description="MAT")
+
+    model_config = {
+        "from_attributes": True
+    }
 
 
 class SubjectCreate(SubjectBase):

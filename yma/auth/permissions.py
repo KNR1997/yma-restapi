@@ -1,25 +1,14 @@
 import logging
 from abc import ABC, abstractmethod
-import json
 
 from fastapi import HTTPException
 from starlette.requests import Request
 from starlette.status import HTTP_403_FORBIDDEN, HTTP_404_NOT_FOUND
 
-from yma.auth.service import get_current_user
-from yma.enums import UserRoles
+from yma.auth.utils import get_current_user
+from yma.enums import UserRole
 
 log = logging.getLogger(__name__)
-
-
-def any_permission(permissions: list, request: Request) -> bool:
-    for p in permissions:
-        try:
-            p(request=request)
-            return True
-        except HTTPException:
-            pass
-    return False
 
 
 class BasePermission(ABC):
@@ -39,57 +28,50 @@ class BasePermission(ABC):
     @abstractmethod
     def has_required_permissions(self, request: Request) -> bool: ...
 
-    def __init__(self, request: Request):
-        user = get_current_user(request=request)
+    async def __call__(self, request: Request):
+        """
+        Async entry point for permission validation.
+        This is what FastAPI's dependency system will call.
+        """
+        user = await get_current_user(request=request)
         if not user:
             raise HTTPException(
-                status_code=self.user_error_code, detail=self.user_error_msg)
+                status_code=self.user_error_code, detail=self.user_error_msg
+            )
 
         self.role = user.role  # Assuming your User model has a `.role`
 
         if not self.has_required_permissions(request):
             raise HTTPException(
-                status_code=self.role_error_code, detail=self.role_error_msg)
+                status_code=self.role_error_code, detail=self.role_error_msg
+            )
 
 
 class PermissionsDependency(object):
     """
     Permission dependency that is used to define and check all the permission
     classes from one place inside route definition.
-
-    Use it as an argument to FastAPI's `Depends` as follows:
-
-    .. code-block:: python
-
-        app = FastAPI()
-
-        @app.get(
-            "/teapot/",
-            dependencies=[Depends(
-                PermissionsDependency([TeapotUserAgentPermission]))]
-        )
-        async def teapot() -> dict:
-            return {"teapot": True}
     """
 
     def __init__(self, permissions_classes: list):
         self.permissions_classes = permissions_classes
 
-    def __call__(self, request: Request):
+    async def __call__(self, request: Request):
         for permission_class in self.permissions_classes:
-            permission_class(request=request)
+            permission = permission_class()
+            await permission(request=request)
 
 
 class AdminPermission(BasePermission):
     def has_required_permissions(self, request: Request) -> bool:
-        return self.role in [UserRoles.super_admin, UserRoles.admin]
+        return self.role in [UserRole.super_admin, UserRole.admin]
 
 
 class TeacherPermission(BasePermission):
     def has_required_permissions(self, request: Request) -> bool:
-        return self.role in [UserRoles.teacher, UserRoles.admin]
+        return self.role in [UserRole.teacher, UserRole.admin]
 
 
 class StudentPermission(BasePermission):
     def has_required_permissions(self, request: Request) -> bool:
-        return self.role in [UserRoles.student, UserRoles.teacher, UserRoles.admin]
+        return self.role in [UserRole.student, UserRole.teacher, UserRole.admin]

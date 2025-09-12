@@ -1,0 +1,8 @@
+version: "3.9"
+
+services:
+  fastapi:
+    volumes:
+      - .:/app   # Mount current directory into /app
+    # command: uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
+    command: python run.py
