@@ -2,7 +2,7 @@ from typing import Optional
 from fastapi import APIRouter, Query
 from tortoise.expressions import Q
 
-from yma.exceptions import ResourceNotFoundException
+from yma.exceptions import ConflictException, ResourceNotFoundException
 
 from .models import GuardianCreate, GuardianPagination, GuardianRead, GuardianUpdate
 from .repository import GuardianRepository
@@ -37,7 +37,7 @@ async def paginated_guardians(
             except ValueError:
                 continue  # skip invalid filter format
 
-    total, data = await service.paginated_guardians(page=page, page_size=page_size, search=q)
+    total, data = await service.paginated(page=page, page_size=page_size, search=q)
     return GuardianPagination(
         data=data,
         itemsPerPage=10,
@@ -57,6 +57,9 @@ async def get_guardian(guardian_id: int):
 @router.post("", response_model=GuardianRead)
 async def create_guardian(guardian_in: GuardianCreate):
     """Create a new guardian."""
+    if await service.get_by_nic_number(nic_number=guardian_in.nic_number):
+        raise ConflictException(
+            "Guardian with this nic already exists", field="name")
     return await service.create(guardian_in)
 
 
@@ -70,6 +73,10 @@ async def update_guardian(
     if not guardian:
         raise ResourceNotFoundException(
             "A guardian with this id does not exist.")
+    if guardian_in.nic_number != guardian.nic_number:
+        if await service.get_by_nic_number(nic_number=guardian_in.nic_number):
+            raise ConflictException(
+                "Guardian with this nic already exists", field="name")
     return await service.update(guardian=guardian, guardian_in=guardian_in)
 
 

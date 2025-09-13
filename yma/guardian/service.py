@@ -9,7 +9,7 @@ class GuardianService:
     def __init__(self, repository: GuardianRepository):
         self.repository = repository
 
-    async def paginated_guardians(
+    async def paginated(
         self, page: int, page_size: int, search: Q = Q(), order: list = []
     ) -> Tuple[int, List[Guardian]]:
         return await self.repository.paginated(page, page_size, search, order)
@@ -21,6 +21,10 @@ class GuardianService:
     async def get_by_name(self, name: str) -> Guardian | None:
         """Gets a guardian by name."""
         return await self.repository.get(name=name)
+    
+    async def get_by_nic_number(self, nic_number: str) -> Guardian | None:
+        """Gets a guardian by nic_number."""
+        return await self.repository.get(nic_number=nic_number)
 
     async def create(self, guardian_in: GuardianCreate) -> Guardian:
         return await self.repository.create(**guardian_in.model_dump())

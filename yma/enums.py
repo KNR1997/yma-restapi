@@ -38,4 +38,7 @@ class EnrollmentStatusType(StrEnum):
     LOCKED = "LOCKED"
     # DROPPED = "DROPPED"
 
-    
+
+class GenderType(StrEnum):
+    MALE = "MALE"
+    FEMALE = "FEMALE"

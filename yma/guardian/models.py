@@ -1,7 +1,7 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from tortoise import fields, models
 
-from yma.enums import GradeType
+from yma.enums import GenderType
 from yma.models import Pagination
 
 
@@ -11,7 +11,7 @@ class Guardian(models.Model):
     last_name = fields.CharField(max_length=30)
     nic_number = fields.CharField(max_length=30, unique=True)
     phone_number = fields.CharField(max_length=10)
-    gender = fields.CharEnumField(GradeType)
+    gender = fields.CharEnumField(GenderType)
 
     class Meta:
         table = "guardian"
@@ -24,7 +24,7 @@ class GuardianBase(BaseModel):
     last_name: str
     nic_number: str
     phone_number: str
-    gender: GradeType
+    gender: GenderType
 
     model_config = {
         "from_attributes": True
