@@ -142,7 +142,7 @@ class UserUpdate(BaseModel):
     first_name: str
     last_name: str
     name_with_initials: str
-    nic: str
+    nic: str | None = None
     username: str
     email: EmailStr
     role: str | None = None

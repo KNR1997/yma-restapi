@@ -36,6 +36,13 @@ class UserService:
     async def create(self, user_in: UserCreate) -> YMAUser:
         return await self.repository.create(**user_in.model_dump())
 
+    async def get_or_create(self, email: str, user_in: UserCreate) -> YMAUser:
+        if email:
+            instance = await self.repository.get(email=email)
+        if instance:
+            return instance
+        return await self.repository.create(**user_in.model_dump())
+
     async def update(self, user: YMAUser, user_in: UserUpdate) -> YMAUser:
         """Updates a user."""
         return await self.repository.update(user, **user_in.model_dump(exclude_unset=True))

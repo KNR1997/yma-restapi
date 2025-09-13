@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from uuid import UUID
 from tortoise import fields, models
 
-from yma.auth.models import UserCreate
+from yma.auth.models import UserCreate, UserRead, UserUpdate
 from yma.enums import GradeType
 from yma.models import Pagination
 
@@ -19,25 +19,31 @@ class Student(models.Model):
 
 # Pydantic models
 class StudentBase(BaseModel):
-    name: str
-    code: str
+    student_number: str
+    grade: GradeType
 
     model_config = {
         "from_attributes": True
     }
 
 
-class StudentCreate(StudentBase):
+class StudentCreate(BaseModel):
     user: UserCreate
+    student_number: str
+    grade: GradeType
     user_id: UUID | None = None
 
 
-class StudentUpdate(StudentBase):
-    pass
+class StudentUpdate(BaseModel):
+    user: UserUpdate
+    student_number: str
+    grade: GradeType
+    user_id: UUID | None = None
 
 
 class StudentRead(StudentBase):
     id: int
+    user: UserRead
 
 
 class StudentPagination(Pagination):

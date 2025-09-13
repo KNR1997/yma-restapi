@@ -5,6 +5,7 @@ from tortoise.transactions import atomic
 
 from yma.auth.repository import UserRepository
 from yma.auth.services.user_service import UserService
+from yma.enums import UserRole
 from yma.exceptions import ResourceNotFoundException
 
 from .models import StudentCreate, StudentPagination, StudentRead, StudentUpdate
@@ -18,7 +19,7 @@ service = StudentService(StudentRepository())
 
 
 @router.get("", response_model=StudentPagination)
-async def paginated_halls(
+async def paginated_students(
     page: int = Query(1, description="Page Number"),
     page_size: int = Query(10, description="Items Per Page"),
     search: Optional[str] = Query("", description="Subject Name for Search"),
@@ -67,6 +68,7 @@ async def create_student(student_in: StudentCreate):
     return await service.create(student_in)
 
 
+@atomic()
 @router.put("/{student_id}", response_model=StudentRead)
 async def update_student(
     student_id: int,
@@ -77,6 +79,12 @@ async def update_student(
     if not student:
         raise ResourceNotFoundException(
             "A student with this id does not exist.")
+    # user = await user_service.get(user_id=student.user.id)
+    # if not user:
+    #     raise ResourceNotFoundException(
+    #         "A user for student does not exist.")
+    # await user_service.update(user=user, user_in=student_in.user)
+    print(type(student))
     return await service.update(student=student, student_in=student_in)
 
 

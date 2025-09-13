@@ -38,9 +38,9 @@ async def paginated_subjects(
             except ValueError:
                 continue  # skip invalid filter format
 
-    total, subjects = await service.paginated(page=page, page_size=page_size, search=q)
+    total, data = await service.paginated(page=page, page_size=page_size, search=q)
     return SubjectPagination(
-        data=subjects,
+        data=data,
         itemsPerPage=10,
         page=page,
         page_size=page_size,
@@ -82,6 +82,7 @@ async def update_subject(
         if await service.get_by_name(name=subject_in.name):
             raise ConflictException(
                 "Subject with this name already exists", field="name")
+    print(type(subject))
     return await service.update(subject=subject, subject_in=subject_in)
 
 
