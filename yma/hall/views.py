@@ -2,7 +2,7 @@ from typing import Optional
 from fastapi import APIRouter, Query
 from tortoise.expressions import Q
 
-from yma.exceptions import ResourceNotFoundException
+from yma.exceptions import ConflictException, ResourceNotFoundException
 
 from .models import HallCreate, HallPagination, HallRead, HallUpdate
 from .repository import HallRepository
@@ -57,6 +57,9 @@ async def get_hall(hall_id: int):
 @router.post("", response_model=HallRead)
 async def create_hall(hall_in: HallCreate):
     """Create a new hall."""
+    if await service.get_by_name(name=hall_in.name):
+        raise ConflictException(
+            "Hall with this name already exists", field="name")
     return await service.create(hall_in)
 
 
@@ -70,6 +73,10 @@ async def update_hall(
     if not hall:
         raise ResourceNotFoundException(
             "A hall with this id does not exist.")
+    if hall_in.name != hall.name:
+        if await service.get_by_name(name=hall_in.name):
+            raise ConflictException(
+                "Hall with this name already exists", field="name")
     return await service.update(hall=hall, hall_in=hall_in)
 
 
