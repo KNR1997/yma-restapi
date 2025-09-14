@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from tortoise import fields, models
 from uuid import UUID
+from typing import List, Optional
 
 from yma.auth.models import UserRead, YMAUser
 from yma.enums import CourseType, GradeType
@@ -40,7 +41,7 @@ class CourseTopic(models.Model):
         table = "course_topic"
 
 
-# Pydantic models
+# Pydantic models(Course)
 class CourseBase(BaseModel):
     name: str
     code: str
@@ -84,3 +85,36 @@ class CoursePageData(CourseRead):
 
 class CoursePagination(Pagination):
     data: list[CourseRead]
+
+
+# Pydantic models(CourseTopic)
+class CourseTopicBase(BaseModel):
+    name: str
+    description: str
+
+    model_config = {
+        "from_attributes": True
+    }
+
+
+class CourseTopicCreate(BaseModel):
+    id: Optional[int] = None
+    name: str
+    description: str
+
+
+class CourseTopicRead(CourseTopicBase):
+    id: int
+
+
+class CourseTopicPagination(Pagination):
+    data: list[CourseTopicRead]
+
+
+class CourseTopicsUpdate(BaseModel):
+    upsert: List[CourseTopicCreate]
+    delete: List[int]
+
+
+class CourseTopicCreateRequest(BaseModel):
+    course_topics: CourseTopicsUpdate

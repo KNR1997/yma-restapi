@@ -2,19 +2,22 @@ from typing import Optional
 from fastapi import APIRouter, Query
 from tortoise.expressions import Q
 
+from yma.course.repos.course_topic_repo import CourseTopicRepository
 from yma.exceptions import ResourceNotFoundException
 
-from .models import CourseCreate, CoursePageData, CoursePagination, CourseRead, CourseUpdate
+from .models import CourseCreate, CoursePageData, CoursePagination, CourseRead, CourseTopicPagination, CourseUpdate, CourseTopicCreateRequest
 from .repos.course_repo import CourseRepository
 from .service import CourseService
+from .course_topic_service import CourseTopicService
 
 
 router = APIRouter()
 service = CourseService(CourseRepository())
+course_topic_service = CourseTopicService(CourseTopicRepository())
 
 
 @router.get("", response_model=CoursePagination)
-async def paginated_subjects(
+async def paginated_courses(
     page: int = Query(1, description="Page Number"),
     page_size: int = Query(10, description="Items Per Page"),
     search: Optional[str] = Query("", description="Subject Name for Search"),
@@ -45,6 +48,47 @@ async def paginated_subjects(
         page_size=page_size,
         total=total,
     )
+
+
+@router.get("/{course_id}/topics", response_model=CourseTopicPagination)
+async def paginated_course_topics(
+    course_id: int,
+    page: int = Query(1, description="Page Number"),
+    page_size: int = Query(10, description="Items Per Page"),
+    search: Optional[str] = Query("", description="Subject Name for Search"),
+    searchJoin: str = Query(
+        "and", description="'and' or 'or' join for multiple search conditions"),
+):
+    q = Q(course_id=course_id)
+    if search:
+        # Example: search="name:english;status:active"
+        filters = search.split(";")
+        for f in filters:
+            try:
+                field, value = f.split(":", 1)
+                lookup = {f"{field}__icontains": value}
+                condition = Q(**lookup)
+                if searchJoin.lower() == "or":
+                    q |= condition
+                else:
+                    q &= condition
+            except ValueError:
+                continue  # skip invalid filter format
+
+    total, data = await course_topic_service.paginated(page=page, page_size=page_size, search=q)
+    return CourseTopicPagination(
+        data=data,
+        itemsPerPage=10,
+        page=page,
+        page_size=page_size,
+        total=total,
+    )
+
+
+@router.post("/{course_id}/topics", summary="Create Course Topics")
+async def create_or_update_course_topics(course_id: int, data: CourseTopicCreateRequest):
+    await course_topic_service.create_or_update_course_topics(course_id=course_id, data=data)
+    # return Success(msg="Created Successfully")
 
 
 @router.get("/{course_id}", response_model=CoursePageData)
