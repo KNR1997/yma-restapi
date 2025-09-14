@@ -2,7 +2,7 @@ from typing import Optional
 from fastapi import APIRouter, Query
 from tortoise.expressions import Q
 
-from yma.exceptions import ResourceNotFoundException
+from yma.exceptions import ConflictException, ResourceNotFoundException
 
 from .models import EnrollmentCreate, EnrollmentPagination, EnrollmentRead, EnrollmentUpdate
 from .repository import EnrollmentRepository
@@ -14,7 +14,7 @@ service = EnrollmentService(EnrollmentRepository())
 
 
 @router.get("", response_model=EnrollmentPagination)
-async def paginated_subjects(
+async def paginated_enrollments(
     page: int = Query(1, description="Page Number"),
     page_size: int = Query(10, description="Items Per Page"),
     search: Optional[str] = Query("", description="Subject Name for Search"),
@@ -57,6 +57,9 @@ async def get_enrollment(enrollment_id: int):
 @router.post("", response_model=EnrollmentRead)
 async def create_enrollment(enrollment_in: EnrollmentCreate):
     """Create a new enrollment."""
+    if await service.is_exist(student_id=enrollment_in.student_id, course_id=enrollment_in.course_id):
+        raise ConflictException(
+            "Already enrolled for this course", field="course")
     return await service.create(enrollment_in)
 
 
@@ -77,3 +80,10 @@ async def update_enrollment(
 async def delete_enrollment(enrollment_id: int):
     """Delete a enrollment, returning only an HTTP 200 OK if successful."""
     return await service.delete(enrollment_id)
+
+
+@router.get("/{enrollment_id}/payments", response_model=EnrollmentRead)
+async def get_enrollment_payments(enrollment_id: int):
+    """Get a enrollment by its id."""
+    enrollment = await service.get(enrollment_id)
+    return enrollment

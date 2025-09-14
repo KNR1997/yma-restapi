@@ -1,10 +1,10 @@
 from pydantic import BaseModel
 from tortoise import fields, models
 
-from yma.course.models import Course
+from yma.course.models import Course, CourseRead
 from yma.enums import EnrollmentStatusType
 from yma.models import Pagination
-from yma.student.models import Student
+from yma.student.models import Student, StudentRead
 
 
 class Enrollment(models.Model):
@@ -40,8 +40,9 @@ class EnrollmentBase(BaseModel):
     }
 
 
-class EnrollmentCreate(EnrollmentBase):
-    pass
+class EnrollmentCreate(BaseModel):
+    student_id: int
+    course_id: int
 
 
 class EnrollmentUpdate(EnrollmentBase):
@@ -50,6 +51,8 @@ class EnrollmentUpdate(EnrollmentBase):
 
 class EnrollmentRead(EnrollmentBase):
     id: int
+    course: CourseRead
+    student: StudentRead
 
 
 class EnrollmentPagination(Pagination):
