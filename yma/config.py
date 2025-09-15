@@ -31,6 +31,8 @@ TORTOISE_ORM = {
                 "yma.guardian.models",
                 "yma.student.models",
                 "yma.enrollment.models",
+                "yma.api_log.models",
+                "yma.payments.models",
                 "aerich.models"  # 👈 Aerich needs this
             ],
             "default_connection": "default",

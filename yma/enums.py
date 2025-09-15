@@ -42,3 +42,30 @@ class EnrollmentStatusType(StrEnum):
 class GenderType(StrEnum):
     MALE = "MALE"
     FEMALE = "FEMALE"
+
+
+class MethodType(StrEnum):
+    GET = "GET"
+    POST = "POST"
+    PUT = "PUT"
+    DELETE = "DELETE"
+    PATCH = "PATCH"
+
+
+class PayerType(StrEnum):
+    STUDENT = "STUDENT"
+    TEACHER = "TEACHER"
+    MANAGER = "MANAGER"
+    INSTITUTE = "INSTITUTE"
+
+
+class PaymentMethodType(StrEnum):
+    CASH = "CASH"
+    CARD = "CARD"
+
+
+class PaymentType(StrEnum):
+    ADMISSION_FEE = "ADMISSION_FEE"
+    COURSE_FEE = "COURSE_FEE"
+    EXAM_FEE = "EXAM_FEE"
+    SALARY = "SALARY"

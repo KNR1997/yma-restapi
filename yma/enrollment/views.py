@@ -3,14 +3,13 @@ from fastapi import APIRouter, Query
 from tortoise.expressions import Q
 
 from yma.exceptions import ConflictException, ResourceNotFoundException
-
-from .models import EnrollmentCreate, EnrollmentPagination, EnrollmentRead, EnrollmentUpdate
-from .repository import EnrollmentRepository
-from .service import EnrollmentService
-
+from yma.enrollment.services import EnrollmentService, EnrollmentPaymentService
+from yma.enrollment.repos import EnrollmentRepository, EnrollmentPaymentRepository
+from yma.enrollment.models import EnrollmentCreate, EnrollmentPagination, EnrollmentRead, EnrollmentUpdate, EnrollmentPaymentPagination, EnrollmentReadSimple
 
 router = APIRouter()
 service = EnrollmentService(EnrollmentRepository())
+enrollment_payment_service = EnrollmentPaymentService(EnrollmentPaymentRepository())
 
 
 @router.get("", response_model=EnrollmentPagination)
@@ -54,7 +53,7 @@ async def get_enrollment(enrollment_id: int):
     return enrollment
 
 
-@router.post("", response_model=EnrollmentRead)
+@router.post("", response_model=EnrollmentReadSimple)
 async def create_enrollment(enrollment_in: EnrollmentCreate):
     """Create a new enrollment."""
     if await service.is_exist(student_id=enrollment_in.student_id, course_id=enrollment_in.course_id):
@@ -82,8 +81,45 @@ async def delete_enrollment(enrollment_id: int):
     return await service.delete(enrollment_id)
 
 
-@router.get("/{enrollment_id}/payments", response_model=EnrollmentRead)
-async def get_enrollment_payments(enrollment_id: int):
-    """Get a enrollment by its id."""
-    enrollment = await service.get(enrollment_id)
-    return enrollment
+@router.get("/{enrollment_id}/payments", response_model=EnrollmentPaymentPagination)
+async def paginated_enrollment_payments(
+    enrollment_id: int,
+    page: int = Query(1, description="Page Number"),
+    page_size: int = Query(10, description="Items Per Page"),
+    search: Optional[str] = Query("", description="Subject Name for Search"),
+    searchJoin: str = Query(
+        "and", description="'and' or 'or' join for multiple search conditions"),
+):
+    q = Q(enrollment_id=enrollment_id)
+    if search:
+        # Example: search="name:english;status:active"
+        filters = search.split(";")
+        for f in filters:
+            try:
+                field, value = f.split(":", 1)
+                lookup = {f"{field}__icontains": value}
+                condition = Q(**lookup)
+                if searchJoin.lower() == "or":
+                    q |= condition
+                else:
+                    q &= condition
+            except ValueError:
+                continue  # skip invalid filter format
+
+    total, data = await enrollment_payment_service.paginated(page=page, page_size=page_size, search=q)
+    return EnrollmentPaymentPagination(
+        data=data,
+        itemsPerPage=10,
+        page=page,
+        page_size=page_size,
+        total=total,
+    )
+
+
+@router.post("/{enrollment_id}/payments", response_model=EnrollmentRead)
+async def create_enrollment_payment(enrollment_in: EnrollmentCreate):
+    """Create a new enrollment."""
+    if await service.is_exist(student_id=enrollment_in.student_id, course_id=enrollment_in.course_id):
+        raise ConflictException(
+            "Already enrolled for this course", field="course")
+    return await service.create(enrollment_in)

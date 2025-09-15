@@ -15,6 +15,8 @@ from yma.hall.views import router as hall_router
 from yma.student.views import router as student_router
 from yma.subject.views import router as subject_router
 from yma.settings.views import router as settings_router
+from yma.api_log.views import router as api_log_router
+from yma.payments.views import router as payments_router
 
 
 class ErrorMessage(BaseModel):
@@ -55,6 +57,8 @@ authenticated_api_router.include_router(event_router, prefix="/events", tags=["E
 authenticated_api_router.include_router(guardian_router, prefix="/guardians", tags=["Guardian"])
 authenticated_api_router.include_router(hall_router, prefix="/halls", tags=["Hall"])
 authenticated_api_router.include_router(student_router, prefix="/students", tags=["Student"])
+authenticated_api_router.include_router(api_log_router, prefix="/apis", tags=["Api"])
+authenticated_api_router.include_router(payments_router, prefix="/payments", tags=["Payments"])
 
 # Mount the private router into the main one
 api_router.include_router(authenticated_api_router)

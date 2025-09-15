@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from uuid import UUID
 from tortoise import fields, models
+from typing import Optional
 
 from yma.auth.models import UserCreate, UserRead, UserUpdate
 from yma.enums import GradeType
@@ -21,7 +22,8 @@ class Student(models.Model):
 class StudentBase(BaseModel):
     student_number: str
     grade: GradeType
-
+    is_admission_payed: bool
+    
     model_config = {
         "from_attributes": True
     }
@@ -41,10 +43,28 @@ class StudentUpdate(BaseModel):
     user_id: UUID | None = None
 
 
+class StudentPartialUpdate(BaseModel):
+    user: UserUpdate | None = None
+    student_number: str | None = None
+    grade: GradeType | None = None
+    is_admission_payed: bool | None = None
+
+
 class StudentRead(StudentBase):
     id: int
-    user: UserRead
+    user: Optional[UserRead]
 
 
 class StudentPagination(Pagination):
     data: list[StudentRead]
+
+
+class AdmissionPaymentCreate(BaseModel):
+    admission: float
+
+
+class CoursePaymentCreate(BaseModel):
+    course_id: int
+    month: int
+    year: int
+    amount: float

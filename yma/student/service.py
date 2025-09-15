@@ -1,8 +1,8 @@
 from typing import List, Tuple
 from tortoise.expressions import Q
 
-from .models import Student, StudentCreate, StudentUpdate
-from .repository import StudentRepository
+from yma.student.models import Student, StudentCreate, StudentUpdate, StudentPartialUpdate
+from yma.student.repository import StudentRepository
 
 
 class StudentService:
@@ -37,6 +37,14 @@ class StudentService:
             student_number=student_in.student_number,
             grade=student_in.grade,
         )
+
+    async def _partial_update(self, student: Student, data: dict) -> Student:
+        return await self.repository.update(student, **data)
+
+    async def mark_admission_paid(self, student: Student) -> Student:
+        return await self._partial_update(student, {
+            "is_admission_payed": True,
+        })
 
     async def delete(self, student_id: int) -> bool:
         """Deletes a student."""

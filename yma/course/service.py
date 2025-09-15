@@ -15,6 +15,11 @@ class CourseService:
     ) -> Tuple[int, List[Course]]:
         return await self.repository.paginated(page, page_size, search, order)
 
+    async def get_student_enrolled_paginated(
+        self, student_id: int, page: int, page_size: int, search: Q = Q(), order: list = []
+    ) -> Tuple[int, List[Course]]:
+        return await self.repository.get_student_enrolled_paginated(student_id, page, page_size, search, order)
+
     async def get(self, course_id: int) -> Course | None:
         """Gets a course by id."""
         return await self.repository.get(id=course_id, prefetch=['subject', 'teacher'])

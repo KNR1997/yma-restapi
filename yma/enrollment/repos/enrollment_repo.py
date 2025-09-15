@@ -1,6 +1,5 @@
 from yma.repository import BaseRepository
-
-from .models import Enrollment
+from yma.enrollment.models import Enrollment
 
 
 class EnrollmentRepository(BaseRepository[Enrollment]):

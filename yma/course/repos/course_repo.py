@@ -23,6 +23,30 @@ class CourseRepository:
         records = await query.offset((page - 1) * page_size).limit(page_size)
         return total, list(records)
 
+    async def get_student_enrolled_paginated(
+        self,
+        student_id: int,
+        page: int,
+        page_size: int,
+        search: Optional[Q] = None,
+        order: Optional[List[str]] = None,
+        prefetch: Optional[List[str]] = None
+    ) -> Tuple[int, List[Course]]:
+        # Use default if no search
+        query = Course.filter(
+            enrollments__student_id=student_id,
+            enrollments__is_active=True
+        )
+        if search:
+            query = query.filter(search)
+        if prefetch:
+            query = query.prefetch_related(*prefetch)
+        if order:
+            query = query.order_by(*order)
+        total = await query.count()
+        records = await query.offset((page - 1) * page_size).limit(page_size)
+        return total, list(records)
+
     async def create(self, **kwargs) -> Course:
         course = await Course.create(**kwargs)
         return course
